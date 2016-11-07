@@ -44,7 +44,7 @@ public class PacketPriceCalculator extends MIDlet
             new TextField(
                 "price per packet",
                 "0.200",
-                10,
+                6,
                 TextField.DECIMAL
                 );
         
@@ -94,7 +94,8 @@ public class PacketPriceCalculator extends MIDlet
         {
             super("Packet Price Calculator");
             
-            
+            append(siMessage);
+            append(new Spacer(240, 2));
             append(tfPacketSize);
             append(new Spacer(240, 2));
             append(tfByteSize);
@@ -106,15 +107,13 @@ public class PacketPriceCalculator extends MIDlet
             append(tfPricePerPacket);
             append(new Spacer(240, 2));
             append(tfTax);
-            append(new Spacer(240, 2));
-            append(siMessage);
     
             setItemStateListener(this);
         }
         
         double getPricePerPacket()
         {
-            return NumberUtilities.tryParseDouble(tfPricePerPacket.getString()).orElse(0.0);
+            return Math.max(0.0, NumberUtilities.tryParseDouble(tfPricePerPacket.getString()).orElse(0.0));
         }
         
         double getPacketSize()
@@ -127,10 +126,30 @@ public class PacketPriceCalculator extends MIDlet
             return NumberUtilities.tryParseDouble(tfTax.getString()).orElse(0.0) + 100.0;
         }
         
+        double getPacketPrice()
+        {
+            return Math.max(0.0, NumberUtilities.tryParseDouble(tfPacketPrice.getString()).orElse(0.0));
+        }        
+        
         void calcByPacket()
         {
-            long price = (long)Math.ceil(getPricePerPacket() * getTax() * getPacketSize() / 100.0);
-            tfPacketPrice.setString(Long.toString(price));
+            long price = (long)Math.ceil(getPricePerPacket() * getTax() * getPacketSize() * 10.0);
+            try
+            {
+                if (price % 1000L == 0L)
+                {
+                    tfPacketPrice.setString(Long.toString(price / 1000L));
+                }
+                else
+                {
+                    tfPacketPrice.setString(Double.toString((double)price / 1000.0));
+                }
+            }
+            catch (IllegalArgumentException ex)
+            {
+                tfPacketPrice.setString("0");
+                siMessage.setText("Error");
+            }
         }
         
         void calcByPrice()
@@ -138,27 +157,86 @@ public class PacketPriceCalculator extends MIDlet
             
         }
         
+        boolean convertPacketToByte()
+        {
+            double packets = getPacketSize();
+            long bytes = (long)Math.ceil(packets * 128.0);
+            String str = Long.toString(bytes);
+            if (bytes == 0L)
+            {
+                str = "0";
+            }
+            else if (bytes < 1000L)
+            {
+                str = "0." + ("000" + str).substring(str.length() + 3 - 3);
+            }
+            else
+            {
+                str = str.substring(0, str.length() - 3)
+                    + (bytes % 1000L > 0 ? "." + str.substring(str.length() - 3) : "");
+            }
+            try
+            {
+                tfByteSize.setString(str);
+                return true;
+            }
+            catch (IllegalArgumentException ex)
+            {
+                tfByteSize.setString("0");
+                siMessage.setText("Error");
+                return false;
+            }            
+        }
+        
+        boolean convertByteToPacket()
+        {
+            double bytes = NumberUtilities.tryParseDouble(tfByteSize.getString()).orElse(0.0);
+            long packets = (long)Math.ceil(bytes * 1000.0 / 128.0);
+            try
+            {
+                tfPacketSize.setString(Long.toString(packets));
+                return true;
+            }
+            catch (IllegalArgumentException ex)
+            {
+                tfPacketSize.setString("0");
+                siMessage.setText("Error");
+                return false;
+            }            
+        }
+        
+        boolean isSelectByPacketSize()
+        {
+            return cgCalcurationType.getSelectedIndex() == 0;
+        }
+        
+        boolean isSelectByPacketPrice()
+        {
+            return !isSelectByPacketSize();
+        }
+        
         public void itemStateChanged(Item item)
         {
+            if (siMessage.getText() != null)
+            {
+                siMessage.setText(null);
+            }
             boolean recalc = false;
-            if (item == cgCalcurationType)
+            if (item == cgCalcurationType || item == tfPricePerPacket || item == tfTax)
             {
                 recalc = true;
             }
             else if (item == tfPacketSize)
             {
-                long packets = NumberUtilities.tryParseLong(tfPacketSize.getString()).orElse(0L);
-                long bytes = packets * 128L;
-                bytes = bytes / 1000L + Math.min(bytes % 1000L, 1L);
-                tfByteSize.setString(Long.toString(bytes));
-                recalc = cgCalcurationType.getSelectedIndex() == 0;
+                recalc = convertPacketToByte() && isSelectByPacketSize();
             }
             else if (item == tfByteSize)
             {
-                long bytes = NumberUtilities.tryParseLong(tfByteSize.getString()).orElse(0L) * 1000L;
-                long packets = bytes / 128L + Math.min(bytes % 128L, 1L);
-                tfPacketSize.setString(Long.toString(packets));
-                recalc = cgCalcurationType.getSelectedIndex() == 0;
+                recalc = convertByteToPacket() && isSelectByPacketSize();
+            }
+            else if (item == tfPacketPrice)
+            {
+                recalc = isSelectByPacketPrice();
             }
             if (recalc)
             {

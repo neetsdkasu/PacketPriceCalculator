@@ -140,7 +140,27 @@ public class PacketPriceCalculator extends MIDlet
         
         public void itemStateChanged(Item item)
         {
+            boolean recalc = false;
             if (item == cgCalcurationType)
+            {
+                recalc = true;
+            }
+            else if (item == tfPacketSize)
+            {
+                long packets = NumberUtilities.tryParseLong(tfPacketSize.getString()).orElse(0L);
+                long bytes = packets * 128L;
+                bytes = bytes / 1000L + Math.min(bytes % 1000L, 1L);
+                tfByteSize.setString(Long.toString(bytes));
+                recalc = cgCalcurationType.getSelectedIndex() == 0;
+            }
+            else if (item == tfByteSize)
+            {
+                long bytes = NumberUtilities.tryParseLong(tfByteSize.getString()).orElse(0L) * 1000L;
+                long packets = bytes / 128L + Math.min(bytes % 128L, 1L);
+                tfPacketSize.setString(Long.toString(packets));
+                recalc = cgCalcurationType.getSelectedIndex() == 0;
+            }
+            if (recalc)
             {
                 switch (cgCalcurationType.getSelectedIndex())
                 {
@@ -150,27 +170,6 @@ public class PacketPriceCalculator extends MIDlet
                 case 1: // by price
                     calcByPrice();
                     break;
-                }
-            }
-            else if (item == tfPacketSize)
-            {
-                long packets = NumberUtilities.tryParseLong(tfPacketSize.getString()).orElse(0L);
-                long bytes = packets * 128L;
-                bytes = bytes / 1000L + Math.min(bytes % 1000L, 1L);
-                tfByteSize.setString(Long.toString(bytes));
-                if (cgCalcurationType.getSelectedIndex() == 0)
-                {
-                    calcByPacket();
-                }
-            }
-            else if (item == tfByteSize)
-            {
-                long bytes = NumberUtilities.tryParseLong(tfByteSize.getString()).orElse(0L) * 1000L;
-                long packets = bytes / 128L + Math.min(bytes % 128L, 1L);
-                tfPacketSize.setString(Long.toString(packets));
-                if (cgCalcurationType.getSelectedIndex() == 0)
-                {
-                    calcByPacket();
                 }
             }
         }

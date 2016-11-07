@@ -2,7 +2,10 @@ package neetsdkasu.app;
 
 import javax.microedition.lcdui.Choice;
 import javax.microedition.lcdui.ChoiceGroup;
+import javax.microedition.lcdui.Command;
+import javax.microedition.lcdui.CommandListener;
 import javax.microedition.lcdui.Display;
+import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
 import javax.microedition.lcdui.Item;
 import javax.microedition.lcdui.ItemStateListener;
@@ -16,11 +19,16 @@ import neetsdkasu.util.NumberUtilities;
 import neetsdkasu.util.OptionalDouble;
 import neetsdkasu.util.OptionalLong;
 
-public class PacketPriceCalculator extends MIDlet
+public class PacketPriceCalculator extends MIDlet implements CommandListener
 {
+    Command cmdExit = new Command("EXIT", Command.EXIT, 1);
+    
     public PacketPriceCalculator()
     {
-        Display.getDisplay(this).setCurrent(new MainForm());
+        MainForm form = new MainForm();
+        form.addCommand(cmdExit);
+        Display.getDisplay(this).setCurrent(form);
+        form.setCommandListener(this);
     }
     
     protected void startApp() throws MIDletStateChangeException
@@ -36,6 +44,14 @@ public class PacketPriceCalculator extends MIDlet
     protected void pauseApp()
     {
         
+    }
+    
+    public void commandAction(Command c, Displayable d)
+    {
+        if (c == cmdExit)
+        {
+            notifyDestroyed();
+        }
     }
     
     class MainForm extends Form implements ItemStateListener

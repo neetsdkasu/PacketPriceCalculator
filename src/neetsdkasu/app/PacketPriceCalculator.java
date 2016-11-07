@@ -8,12 +8,15 @@ import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
 import javax.microedition.lcdui.Item;
+import javax.microedition.lcdui.ItemCommandListener;
 import javax.microedition.lcdui.ItemStateListener;
 import javax.microedition.lcdui.Spacer;
 import javax.microedition.lcdui.StringItem;
 import javax.microedition.lcdui.TextField;
 import javax.microedition.midlet.MIDlet;
 import javax.microedition.midlet.MIDletStateChangeException;
+import javax.microedition.rms.RecordStore;
+import javax.microedition.rms.RecordStoreException;
 
 import neetsdkasu.util.NumberUtilities;
 import neetsdkasu.util.OptionalDouble;
@@ -21,11 +24,12 @@ import neetsdkasu.util.OptionalLong;
 
 public class PacketPriceCalculator extends MIDlet implements CommandListener
 {
+    MainForm form = null;
     Command cmdExit = new Command("EXIT", Command.EXIT, 1);
     
     public PacketPriceCalculator()
     {
-        MainForm form = new MainForm();
+        form = new MainForm();
         form.addCommand(cmdExit);
         Display.getDisplay(this).setCurrent(form);
         form.setCommandListener(this);
@@ -38,7 +42,7 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
     
     protected void destroyApp(boolean unconditional) throws MIDletStateChangeException
     {
-        
+        save();
     }
  
     protected void pauseApp()
@@ -50,16 +54,24 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
     {
         if (c == cmdExit)
         {
+            save();
             notifyDestroyed();
         }
     }
     
-    class MainForm extends Form implements ItemStateListener
+    void save()
+    {
+        SaveData.setPricePerPacket(form.tfPricePerPacket.getString());
+        SaveData.setTax(form.tfTax.getString());
+        SaveData.close();
+    }
+    
+    class MainForm extends Form implements ItemCommandListener, ItemStateListener
     {
         TextField tfPricePerPacket =
             new TextField(
                 "price per packet",
-                "0.200",
+                SaveData.defaultPricePerPacket,
                 6,
                 TextField.DECIMAL
                 );
@@ -67,7 +79,7 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
         TextField tfTax =
             new TextField(
                 "tax (%)",
-                "8",
+                SaveData.defaultTax,
                 3,
                 TextField.NUMERIC
                 );
@@ -110,6 +122,19 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
         {
             super("Packet Price Calculator");
             
+            if (SaveData.open())
+            {
+                tfPricePerPacket.setString(SaveData.getPricePerPacket());
+                tfTax.setString(SaveData.getTax());
+            }
+            else
+            {
+                siMessage.setText("Error Load Storage");
+            }
+            
+            tfPricePerPacket.addCommand(new Command("RESET", Command.ITEM, 1));
+            tfTax.addCommand(new Command("RESET", Command.ITEM, 1));
+            
             append(siMessage);
             append(new Spacer(240, 2));
             append(tfPacketSize);
@@ -125,6 +150,8 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
             append(tfTax);
     
             setItemStateListener(this);
+            tfPricePerPacket.setItemCommandListener(this);
+            tfTax.setItemCommandListener(this);
         }
         
         double getPricePerPacket()
@@ -247,6 +274,27 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
             return !isSelectByPacketSize();
         }
         
+        public void commandAction(Command c, Item item)
+        {
+            if (item == tfPricePerPacket)
+            {
+                tfPricePerPacket.setString(SaveData.defaultPricePerPacket);
+            }
+            else if (item == tfTax)
+            {
+                tfTax.setString(SaveData.defaultTax);
+            }
+            switch (cgCalcurationType.getSelectedIndex())
+            {
+            case 0: // by packet(byte)
+                calcByPacket();
+                break;
+            case 1: // by price
+                calcByPrice();
+                break;
+            }
+        }
+        
         public void itemStateChanged(Item item)
         {
             if (siMessage.getText() != null)
@@ -283,5 +331,114 @@ public class PacketPriceCalculator extends MIDlet implements CommandListener
                 }
             }
         }
+    }
+}
+
+class SaveData
+{
+    static String resName = "savedata";
+    static String defaultPricePerPacket = "0.200";
+    static String defaultTax = "8";
+    static RecordStore res = null;
+
+    static boolean open()
+    {
+        try
+        {
+            res = RecordStore.openRecordStore(resName, true);
+            if (res.getNumRecords() < 2)
+            {
+                byte[] buf = defaultPricePerPacket.getBytes();
+                res.addRecord(buf, 0, buf.length);
+                buf = defaultTax.getBytes();
+                res.addRecord(buf, 0, buf.length);
+            }
+            return true;
+        }
+        catch (RecordStoreException ex)
+        {
+            close();
+            return false;
+        }
+    }
+    
+    static String getPricePerPacket()
+    {
+        if (res == null)
+        {
+            return defaultPricePerPacket;
+        }
+        try
+        {
+            return new String(res.getRecord(1));
+        }
+        catch (RecordStoreException ex)
+        {
+            return defaultPricePerPacket;
+        }
+    }
+    
+    static String getTax()
+    {
+        if (res == null)
+        {
+            return defaultTax;
+        }
+        try
+        {
+            return new String(res.getRecord(2));
+        }
+        catch (RecordStoreException ex)
+        {
+            return defaultTax;
+        }
+    }
+    
+    static void setPricePerPacket(String ppp)
+    {
+        if (res == null)
+        {
+            return;
+        }
+        byte[] buf = ppp.getBytes();
+        try
+        {
+            res.setRecord(1, buf, 0, buf.length);
+        }
+        catch (RecordStoreException ex)
+        {
+        }
+    }
+
+    static void setTax(String tax)
+    {
+        if (res == null)
+        {
+            return;
+        }
+        byte[] buf = tax.getBytes();
+        try
+        {
+            res.setRecord(2, buf, 0, buf.length);
+        }
+        catch (RecordStoreException ex)
+        {
+        }
+    }
+    
+    static void close()
+    {
+        if (res == null)
+        {
+            return;
+        }
+        try
+        {
+            res.closeRecordStore();
+        }
+        catch (RecordStoreException ex)
+        {
+        }
+        res = null;
     }
 }

@@ -154,7 +154,23 @@ public class PacketPriceCalculator extends MIDlet
         
         void calcByPrice()
         {
-            
+            double ppp = getPricePerPacket();
+            if (ppp == 0.0)
+            {
+                siMessage.setText("Error");
+                return;
+            }
+            long packets = (long)Math.floor(100.0 * getPacketPrice() / (ppp * getTax()));
+            try
+            {
+                tfPacketSize.setString(Long.toString(packets));
+            }
+            catch (IllegalArgumentException ex)
+            {
+                tfPacketPrice.setString("0");
+                siMessage.setText("Error");
+            }
+            convertPacketToByte();
         }
         
         boolean convertPacketToByte()

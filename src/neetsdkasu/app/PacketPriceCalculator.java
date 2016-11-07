@@ -95,10 +95,6 @@ public class PacketPriceCalculator extends MIDlet
             super("Packet Price Calculator");
             
             
-            append(tfPricePerPacket);
-            append(new Spacer(240, 2));
-            append(tfTax);
-            append(new Spacer(240, 2));
             append(tfPacketSize);
             append(new Spacer(240, 2));
             append(tfByteSize);
@@ -106,6 +102,10 @@ public class PacketPriceCalculator extends MIDlet
             append(tfPacketPrice);
             append(new Spacer(240, 2));
             append(cgCalcurationType);
+            append(new Spacer(240, 2));
+            append(tfPricePerPacket);
+            append(new Spacer(240, 2));
+            append(tfTax);
             append(new Spacer(240, 2));
             append(siMessage);
     
